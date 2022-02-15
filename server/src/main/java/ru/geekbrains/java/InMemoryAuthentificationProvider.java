@@ -36,5 +36,14 @@ public class InMemoryAuthentificationProvider implements AuthentificationProvide
         }
         return null;
     }
+
+    @Override
+    public void start() {    }
+
+    @Override
+    public void stop() {    }
+
+    @Override
+    public void changeUsername(String username, String newUsername) {    }
 }
 

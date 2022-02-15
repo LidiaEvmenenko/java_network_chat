@@ -16,7 +16,9 @@ public class Server {
 
     public Server(){ //запуск сервера, создание списка для добавления туда клиентов, запуск процесса добавления клиентов
         try {
-            this.authentificationProvider= new InMemoryAuthentificationProvider();
+            //this.authentificationProvider= new InMemoryAuthentificationProvider();
+            authentificationProvider= new DataBaseAuthentificationProvider();
+            authentificationProvider.start();
             this.clients= new ArrayList<>();
             ServerSocket serverSocket = new ServerSocket(8189);
             System.out.println("Сервер запущен. Ожидаем подключение клиентов..");
@@ -29,6 +31,10 @@ public class Server {
             }
         } catch (IOException e) {
             e.printStackTrace();
+        } finally {
+            if(authentificationProvider != null) {
+                authentificationProvider.stop();
+            }
         }
     }
 
