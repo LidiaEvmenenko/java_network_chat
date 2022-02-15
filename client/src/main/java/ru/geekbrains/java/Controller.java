@@ -131,6 +131,17 @@ public class Controller{
                             }
                         });
                     }
+                    if(inputMessage.startsWith("/newnameok ")){
+                        Platform.runLater(()->
+                        {
+                            String[] tokens = inputMessage.split("\\s+");
+                            clientsListView.getItems().clear();
+                            labelUserName.setText(tokens[1]);
+                            for (int i = 1; i < tokens.length; i++) {
+                                clientsListView.getItems().add(tokens[i]);
+                            }
+                        });
+                    }
                     continue;
                 }
                 textAreaHistory.appendText(inputMessage + "\n");
