@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<?import javafx.scene.text.*?>
+
+<VBox alignment="center" xmlns="http://javafx.com/javafx/8.0.181" xmlns:fx="http://javafx.com/fxml/1" fx:controller="ru.geekbrains.java.Controller">
+    <HBox fx:id="authPanel">
+        <Label>Login</Label>
+        <TextField fx:id="textFieldLogIn" HBox.hgrow="ALWAYS">
+            <font>
+                <Font size="14.0" />
+            </font></TextField>
+        <Label>Password</Label>
+        <PasswordField fx:id="textFieldPassword" onAction="#tryToAuth" HBox.hgrow="ALWAYS">
+            <font>
+                <Font size="14.0" />
+            </font></PasswordField>
+        <Button onAction="#tryToAuth" prefHeight="30.0" prefWidth="86.0">
+            <font>
+                <Font size="14.0" />
+            </font>Login</Button>
+    </HBox>
+
+    <HBox VBox.vgrow="ALWAYS">
+        <TextArea fx:id="textAreaHistory" editable="false" promptText="Message history is still empty. Write something right now!" HBox.hgrow="ALWAYS">
+            <font>
+                <Font size="14.0" />
+            </font></TextArea>
+        <ListView fx:id="clientsListView" onMouseClicked="#clientsListDoubleClick" visible="false" managed="false" minWidth="180" maxWidth="180" />
+    </HBox>
+
+    <HBox fx:id="msgPanel" visible="false" managed="false">
+        <Label fx:id="labelUserName" alignment="BASELINE_CENTER" maxHeight="Infinity"></Label>
+        <TextField fx:id="textFieldMessage" maxWidth="Infinity" onAction="#sendMessage" promptText="Write your message here..." HBox.hgrow="ALWAYS">
+            <font>
+                <Font size="14.0" />
+            </font></TextField>
+        <Button onAction="#sendMessage" prefHeight="30.0" prefWidth="86.0">
+            <font>
+                <Font size="14.0" />
+            </font>Send</Button>
+    </HBox>
+</VBox>
+
