@@ -9,9 +9,7 @@ import javafx.scene.control.*;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.HBox;
 
-import java.io.DataInputStream;
-import java.io.DataOutputStream;
-import java.io.IOException;
+import java.io.*;
 import java.net.Socket;
 import java.net.URL;
 import java.util.ResourceBundle;
@@ -34,7 +32,12 @@ public class Controller{
     private Socket socket;
     private DataInputStream in;
     private DataOutputStream out;
-    private String tryUserName;
+    private String userName;
+
+    private BufferedWriter fileBuffer;
+    private File directory;
+    private File fileArchive;
+    private boolean beingRenaimed=false;
 
     public void setAutorized(boolean autorized){
         msgPanel.setVisible(autorized);
@@ -71,8 +74,8 @@ public class Controller{
         // под определенным именем
         connect();
         try {
-            tryUserName=textFieldLogIn.getText();
-            out.writeUTF("/auth "+ tryUserName+" "+textFieldPassword.getText());
+            userName=textFieldLogIn.getText();
+            out.writeUTF("/auth "+ userName+" "+textFieldPassword.getText());
             textFieldLogIn.clear();
             textFieldPassword.clear();
         } catch (IOException e) {
@@ -97,6 +100,26 @@ public class Controller{
 
     }
 
+    private  void createArchive() throws IOException {
+        directory= new File("client/archive");
+        if(!directory.exists()){
+            directory.mkdirs();
+        }
+        fileArchive= new File(directory, userName+".txt");
+        fileBuffer = new BufferedWriter(new FileWriter(fileArchive, true));
+    }
+
+    private void readArchive(){
+        try(BufferedReader reader = new BufferedReader(new FileReader(fileArchive))){
+            String s;
+            while ((s = reader.readLine()) != null){
+                textAreaHistory.appendText(s+"\n");
+            }
+        }  catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
     private void mainClientLogic(){
         try {
             while (true) {
@@ -106,10 +129,12 @@ public class Controller{
                 }
                 if(inputMessage.startsWith("/authok")){
                     setAutorized(true);
-                    tryUserName=inputMessage.split("\\s+")[1];
+                    userName=inputMessage.split("\\s+")[1];
+                    createArchive();
+                    readArchive();
                     Platform.runLater(()->
                     {
-                        labelUserName.setText(tryUserName);
+                        labelUserName.setText(userName);
                     });
                     break;
                 }
@@ -132,11 +157,13 @@ public class Controller{
                         });
                     }
                     if(inputMessage.startsWith("/newnameok ")){
+                        beingRenaimed = true;
                         Platform.runLater(()->
                         {
                             String[] tokens = inputMessage.split("\\s+");
                             clientsListView.getItems().clear();
-                            labelUserName.setText(tokens[1]);
+                            userName = tokens[1];
+                            labelUserName.setText(userName);
                             for (int i = 1; i < tokens.length; i++) {
                                 clientsListView.getItems().add(tokens[i]);
                             }
@@ -145,7 +172,7 @@ public class Controller{
                     continue;
                 }
                 textAreaHistory.appendText(inputMessage + "\n");
-
+                fileWriteUser(fileBuffer, inputMessage);
             }
         } catch (IOException e) {
             e.printStackTrace();
@@ -154,8 +181,30 @@ public class Controller{
         }
     }
 
+    private void fileWriteUser(BufferedWriter fileChat, String message){
+        try {
+            fileChat.write(message);
+            fileChat.newLine();
+            fileChat.flush();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
     private void closeConnection(){
         setAutorized(false);
+        textAreaHistory.clear();
+        try {
+            fileBuffer.close();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        if(beingRenaimed){
+            if(new File(directory,userName+".txt").exists()){
+                new File(directory,userName+".txt").delete();
+            }
+            fileArchive.renameTo(new File(directory,userName+".txt"));
+        }
         try{
             if(in!=null){
                 in.close();
