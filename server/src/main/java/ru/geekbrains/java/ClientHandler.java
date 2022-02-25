@@ -85,6 +85,14 @@ public class ClientHandler {
                 String[] tokens=inputMessage.split("\\s+",3);
                 server.sendPersonalMessage(this,tokens[1],tokens[2]);
             }
+            if(inputMessage.startsWith("/newname ")){
+                String[] tokens=inputMessage.split("\\s+",2);
+                server.getAuthentificationProvider().changeUsername(name,tokens[1]);
+                sendMessage("/newnameok "+tokens[1]);
+                server.broadcastMessage(name+" изменил ник на "+tokens[1]);
+                name=tokens[1];
+                server.broadcastClientList();
+            }
             return true;
         }
         server.broadcastMessage(name+": "+inputMessage);
