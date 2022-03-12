@@ -1,5 +1,7 @@
 package ru.geekbrains.java;
 
+import java.sql.Connection;
+
 public interface AuthentificationProvider {
     void start();
     void stop();

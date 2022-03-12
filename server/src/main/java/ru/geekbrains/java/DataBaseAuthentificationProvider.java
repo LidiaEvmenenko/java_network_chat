@@ -63,6 +63,11 @@ public class DataBaseAuthentificationProvider implements AuthentificationProvide
 
     @Override
     public String getUsernameByLoginAndPassword(String login, String password) {
+        if (connection == null){
+            System.out.println("null con db");
+        }
+        System.out.println(connection);
+        System.out.println(login +" " + password);
         try(PreparedStatement preparedStatement = connection.prepareStatement("select username from chatUsers where login=? and password=?")) {
             preparedStatement.setString(1, login);
             preparedStatement.setString(2, password);

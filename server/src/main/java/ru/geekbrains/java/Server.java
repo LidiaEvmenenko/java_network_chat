@@ -5,10 +5,15 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public class Server {
     private AuthentificationProvider authentificationProvider;
     private List<ClientHandler> clients;
+    private ExecutorService executorService;
 
     public AuthentificationProvider getAuthentificationProvider() {
         return authentificationProvider;
@@ -17,44 +22,53 @@ public class Server {
     public Server(){ //запуск сервера, создание списка для добавления туда клиентов, запуск процесса добавления клиентов
         try {
             //this.authentificationProvider= new InMemoryAuthentificationProvider();
-            authentificationProvider= new DataBaseAuthentificationProvider();
-            authentificationProvider.start();
+            executorService = Executors.newCachedThreadPool();
             this.clients= new ArrayList<>();
             ServerSocket serverSocket = new ServerSocket(8189);
             System.out.println("Сервер запущен. Ожидаем подключение клиентов..");
-            int clientsCount=0;
-            while (true) {
-                Socket socket = serverSocket.accept();
-                clientsCount++;
-                System.out.println("Клиент №"+clientsCount +" подключился");
-                ClientHandler c =new ClientHandler(this, socket);
-            }
+            AtomicInteger clientsCount= new AtomicInteger();
+            executorService.execute(() -> {
+                authentificationProvider= new DataBaseAuthentificationProvider();
+                authentificationProvider.start();
+                while (true) {
+                    Socket socket = null;
+                    try {
+                        socket = serverSocket.accept();
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+                       clientsCount.getAndIncrement();
+                       System.out.println("Клиент №" + clientsCount + " подключился");
+                    ClientHandler c = new ClientHandler(this, socket);
+                }
+            });
         } catch (IOException e) {
             e.printStackTrace();
         } finally {
-            if(authentificationProvider != null) {
+            if (authentificationProvider != null) {
                 authentificationProvider.stop();
             }
+            executorServiceShutdown();
         }
     }
 
-    public synchronized void subscribe(ClientHandler c){ //проверка имени клиента,
+    public synchronized void subscribe(ClientHandler c) { //проверка имени клиента,
         // в случае уникальности клиент добавляется в список активных клиентов сервера - участники чата
-        broadcastMessage("К чату подключился пользователь "+c.getName());
+        broadcastMessage("К чату подключился пользователь " + c.getName());
         clients.add(c);
         broadcastClientList();
     }
 
-    public boolean isNameUsed(String username){
-        for (ClientHandler clts:clients) {
-            if(clts.getName().equalsIgnoreCase(username)){
+    public boolean isNameUsed(String username) {
+        for (ClientHandler clts : clients) {
+            if (clts.getName().equalsIgnoreCase(username)) {
                 return true;
             }
         }
         return false;
     }
 
-    public synchronized void unsubscribe(ClientHandler c){//при отключении клиента (завершение его процесса Main)
+public synchronized void unsubscribe(ClientHandler c){//при отключении клиента (завершение его процесса Main)
         // сервер удаляет его из своего списка участников и оповещает остальных клиентов об уходе пользователя
         String name=c.getName();
         clients.remove(c);
@@ -93,4 +107,17 @@ public class Server {
         }
         sender.sendMessage("User "+receiverUsername+" не в сети.");
     }
+
+    public void executorServiceShutdown() {
+        executorService.shutdown();
+        try { // ждем 1 секунду, чтобы потоки завершились
+            if (!executorService.awaitTermination(1, TimeUnit.SECONDS)) {
+                executorService.shutdownNow();
+            }
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+            executorService.shutdownNow();
+        }
+    }
+
 }
