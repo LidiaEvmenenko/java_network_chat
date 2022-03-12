@@ -3,7 +3,10 @@ package ru.geekbrains.java;
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -15,6 +18,9 @@ public class Server {
     private List<ClientHandler> clients;
     private ExecutorService executorService;
 
+    private Date date;
+    private DateFormat dateFormat = new SimpleDateFormat("dd.MM.yyyy HH:mm:ss");
+
     public AuthentificationProvider getAuthentificationProvider() {
         return authentificationProvider;
     }
@@ -25,7 +31,7 @@ public class Server {
             executorService = Executors.newCachedThreadPool();
             this.clients= new ArrayList<>();
             ServerSocket serverSocket = new ServerSocket(8189);
-            System.out.println("Сервер запущен. Ожидаем подключение клиентов..");
+            serverLog("Сервер запущен. Ожидаем подключение клиентов..");
             AtomicInteger clientsCount= new AtomicInteger();
             executorService.execute(() -> {
                 authentificationProvider= new DataBaseAuthentificationProvider();
@@ -38,7 +44,7 @@ public class Server {
                         e.printStackTrace();
                     }
                        clientsCount.getAndIncrement();
-                       System.out.println("Клиент №" + clientsCount + " подключился");
+                       serverLog("Клиент №" + clientsCount + " подключился");
                     ClientHandler c = new ClientHandler(this, socket);
                 }
             });
@@ -55,6 +61,7 @@ public class Server {
     public synchronized void subscribe(ClientHandler c) { //проверка имени клиента,
         // в случае уникальности клиент добавляется в список активных клиентов сервера - участники чата
         broadcastMessage("К чату подключился пользователь " + c.getName());
+        serverLog("К чату подключился пользователь " + c.getName());
         clients.add(c);
         broadcastClientList();
     }
@@ -73,11 +80,12 @@ public synchronized void unsubscribe(ClientHandler c){//при отключен�
         String name=c.getName();
         clients.remove(c);
         broadcastMessage("Из чата вышел пользователь "+name);
+        serverLog("Из чата вышел пользователь "+name);
         broadcastClientList();
     }
 
     public synchronized void broadcastMessage(String message){//рассылка сообщений всем подключенным клиентам
-
+        serverLog(message);
         for (ClientHandler clts:clients) {
             clts.sendMessage(message);
         }
@@ -95,17 +103,20 @@ public synchronized void unsubscribe(ClientHandler c){//при отключен�
 
     public synchronized void sendPersonalMessage(ClientHandler sender, String receiverUsername, String message){
         if(sender.getName().equalsIgnoreCase(receiverUsername)){
-            sender.sendMessage("Нельзя отправлять личные сообщения самому себе");
+            sender.sendMessage("Нельзя отправлять личные сообщения самому себе.");
+            serverLog("To "+receiverUsername+": Нельзя отправлять личные сообщения самому себе.");
             return;
         }
         for(ClientHandler c: clients){
             if(c.getName().equalsIgnoreCase(receiverUsername)){
                 c.sendMessage("from "+sender.getName()+": "+message);
                 sender.sendMessage("to user "+receiverUsername+": "+message);
+                serverLog("From "+sender.getName()+" to user "+ receiverUsername+ ": "+message);
                 return;
             }
         }
         sender.sendMessage("User "+receiverUsername+" не в сети.");
+        serverLog("User "+receiverUsername+" не в сети.");
     }
 
     public void executorServiceShutdown() {
@@ -120,4 +131,8 @@ public synchronized void unsubscribe(ClientHandler c){//при отключен�
         }
     }
 
+    public void serverLog(String message){
+        date = new Date();
+        System.out.println(dateFormat.format(date)+" "+message);
+    }
 }
