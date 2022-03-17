@@ -5,12 +5,16 @@ import java.io.DataOutputStream;
 import java.io.IOException;
 import java.net.Socket;
 
+import org.apache.logging.log4j.Logger;
+import org.apache.logging.log4j.LogManager;
+
 public class ClientHandler {
     private Server server;
     private Socket socket;
     private String name;
     private DataInputStream in;
     private DataOutputStream out;
+    private static final Logger LOGGER = LogManager.getLogger(ClientHandler.class);
 
     public String getName(){//узнаем имя клиента
         return this.name;
@@ -29,7 +33,7 @@ public class ClientHandler {
             });
             clientThread.start();
         }catch(IOException e){
-            e.printStackTrace();
+            LOGGER.error("Error: Невозможно создать поток клиента.",e);
         }
     }
 
@@ -38,7 +42,7 @@ public class ClientHandler {
             while (consumeAuthorizeMessage(in.readUTF()));
             while (consumeRegularMessage(in.readUTF()));
         } catch (IOException e) {
-            e.printStackTrace();
+            LOGGER.error("Error: Ошибка при авторизации/приеме сообщений.",e);
         } finally {
             server.unsubscribe(this);
             closeConnection();
@@ -50,6 +54,7 @@ public class ClientHandler {
             String[] tokens =message.split("\\s+");
             if(tokens.length!=3){
                 sendMessage("SERVER: Неверно сформирован запрос на авторизацию.");
+                LOGGER.warn("SERVER: Неверно сформирован запрос на авторизацию.");
                 return true;
             }
             String login=tokens[1];
@@ -58,19 +63,23 @@ public class ClientHandler {
             String selectedUserName=server.getAuthentificationProvider().getUsernameByLoginAndPassword(login, password);
             if(selectedUserName == null){
                 sendMessage("SERVER: Неверно указан логин/пароль.");
+                LOGGER.warn("SERVER: Неверно указан логин/пароль.");
                 return true;
             }
             if(server.isNameUsed(selectedUserName)){
                 sendMessage("SERVER: Пользователь с таким именем уже подключился.\nSERVER: Выберите другое имя.");
+                LOGGER.warn("SERVER: Пользователь с таким именем уже подключился.\nSERVER: Выберите другое имя.");
                 return true;
             }
             name=selectedUserName;
             sendMessage("/authok "+name);
+            LOGGER.info("/authok "+name);
             server.subscribe(this);
             return false;
 
         } else {
             sendMessage("Server: Вам необходимо авторизоваться.");
+            LOGGER.warn("Server: Вам необходимо авторизоваться.");
             return true;
         }
     }
@@ -79,6 +88,7 @@ public class ClientHandler {
         if(inputMessage.startsWith("/")){
             if(inputMessage.equals("/exit")){
                 sendMessage("/exit");
+                LOGGER.info("/exit");
                 return false;
             }
             if(inputMessage.startsWith("/w ")){
@@ -89,6 +99,7 @@ public class ClientHandler {
                 String[] tokens=inputMessage.split("\\s+",2);
                 server.getAuthentificationProvider().changeUsername(name,tokens[1]);
                 sendMessage("/newnameok "+tokens[1]);
+                LOGGER.info("/newnameok "+tokens[1]);
                 server.broadcastMessage(name+" изменил ник на "+tokens[1]);
                 name=tokens[1];
                 server.broadcastClientList();
@@ -103,7 +114,7 @@ public class ClientHandler {
         try {
             out.writeUTF(message);
         } catch (IOException e) {
-            e.printStackTrace();
+            LOGGER.error("Error: Не удалось отправить сообщение клиенту.",e);
         }
     }
 
@@ -113,21 +124,21 @@ public class ClientHandler {
                 in.close();
             }
         } catch(IOException e){
-            e.printStackTrace();
+            LOGGER.error("Error: Не удалось закрыть DataInputStream.",e);
         }
         try{
             if(out!=null){
                 out.close();
             }
         } catch(IOException e){
-            e.printStackTrace();
+            LOGGER.error("Error: Не удалось закрыть DataOutputStream.",e);
         }
         try{
             if(socket!=null){
                 socket.close();
             }
         } catch(IOException e){
-            e.printStackTrace();
+            LOGGER.error("Error: Не удалось закрыть Socket.",e);
         }
     }
 }

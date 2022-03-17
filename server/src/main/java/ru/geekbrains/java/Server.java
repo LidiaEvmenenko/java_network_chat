@@ -3,23 +3,22 @@ package ru.geekbrains.java;
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.text.DateFormat;
-import java.text.SimpleDateFormat;
 import java.util.ArrayList;
-import java.util.Date;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import org.apache.logging.log4j.Logger;
+import org.apache.logging.log4j.LogManager;
+
 public class Server {
     private AuthentificationProvider authentificationProvider;
     private List<ClientHandler> clients;
     private ExecutorService executorService;
 
-    private Date date;
-    private DateFormat dateFormat = new SimpleDateFormat("dd.MM.yyyy HH:mm:ss");
+    private static final Logger LOGGER = LogManager.getLogger(Server.class);
 
     public AuthentificationProvider getAuthentificationProvider() {
         return authentificationProvider;
@@ -31,7 +30,7 @@ public class Server {
             executorService = Executors.newCachedThreadPool();
             this.clients= new ArrayList<>();
             ServerSocket serverSocket = new ServerSocket(8189);
-            serverLog("Сервер запущен. Ожидаем подключение клиентов..");
+            LOGGER.info("Сервер запущен. Ожидаем подключение клиентов..");
             AtomicInteger clientsCount= new AtomicInteger();
             executorService.execute(() -> {
                 authentificationProvider= new DataBaseAuthentificationProvider();
@@ -41,15 +40,15 @@ public class Server {
                     try {
                         socket = serverSocket.accept();
                     } catch (IOException e) {
-                        e.printStackTrace();
+                        LOGGER.error("Не удалось запустить socket.",e);
                     }
                        clientsCount.getAndIncrement();
-                       serverLog("Клиент №" + clientsCount + " подключился");
+                    LOGGER.info("Клиент №" + clientsCount + " подключился");
                     ClientHandler c = new ClientHandler(this, socket);
                 }
             });
         } catch (IOException e) {
-            e.printStackTrace();
+            LOGGER.error("Не удалось запустить сервер.",e);
         } finally {
             if (authentificationProvider != null) {
                 authentificationProvider.stop();
@@ -61,7 +60,6 @@ public class Server {
     public synchronized void subscribe(ClientHandler c) { //проверка имени клиента,
         // в случае уникальности клиент добавляется в список активных клиентов сервера - участники чата
         broadcastMessage("К чату подключился пользователь " + c.getName());
-        serverLog("К чату подключился пользователь " + c.getName());
         clients.add(c);
         broadcastClientList();
     }
@@ -80,12 +78,11 @@ public synchronized void unsubscribe(ClientHandler c){//при отключен�
         String name=c.getName();
         clients.remove(c);
         broadcastMessage("Из чата вышел пользователь "+name);
-        serverLog("Из чата вышел пользователь "+name);
         broadcastClientList();
     }
 
     public synchronized void broadcastMessage(String message){//рассылка сообщений всем подключенным клиентам
-        serverLog(message);
+        LOGGER.info(message);
         for (ClientHandler clts:clients) {
             clts.sendMessage(message);
         }
@@ -104,19 +101,19 @@ public synchronized void unsubscribe(ClientHandler c){//при отключен�
     public synchronized void sendPersonalMessage(ClientHandler sender, String receiverUsername, String message){
         if(sender.getName().equalsIgnoreCase(receiverUsername)){
             sender.sendMessage("Нельзя отправлять личные сообщения самому себе.");
-            serverLog("To "+receiverUsername+": Нельзя отправлять личные сообщения самому себе.");
+            LOGGER.warn("To "+receiverUsername+": Нельзя отправлять личные сообщения самому себе.");
             return;
         }
         for(ClientHandler c: clients){
             if(c.getName().equalsIgnoreCase(receiverUsername)){
                 c.sendMessage("from "+sender.getName()+": "+message);
                 sender.sendMessage("to user "+receiverUsername+": "+message);
-                serverLog("From "+sender.getName()+" to user "+ receiverUsername+ ": "+message);
+                LOGGER.info("From "+sender.getName()+" to user "+ receiverUsername+ ": "+message);
                 return;
             }
         }
         sender.sendMessage("User "+receiverUsername+" не в сети.");
-        serverLog("User "+receiverUsername+" не в сети.");
+        LOGGER.warn("User "+receiverUsername+" не в сети.");
     }
 
     public void executorServiceShutdown() {
@@ -126,13 +123,9 @@ public synchronized void unsubscribe(ClientHandler c){//при отключен�
                 executorService.shutdownNow();
             }
         } catch (InterruptedException e) {
-            e.printStackTrace();
+            LOGGER.error("Ошибка закрытия executorService.",e);
             executorService.shutdownNow();
         }
     }
 
-    public void serverLog(String message){
-        date = new Date();
-        System.out.println(dateFormat.format(date)+" "+message);
-    }
 }
